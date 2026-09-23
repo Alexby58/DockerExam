@@ -12,3 +12,4 @@
 ### 1. Levantamiento de la solución
 ```bash
 docker compose up -d
+
