@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Gestión de Marcaciones RRHH</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f4f6f9; }
+        h1 { color: #333; }
+        .card { background: white; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        form { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        input, button { padding: 8px; margin: 4px 0; }
+        button { background: #0056b3; color: white; border: none; cursor: pointer; border-radius: 4px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #0056b3; color: white; }
+        .badge { padding: 4px 8px; border-radius: 4px; color: white; font-weight: bold; }
+        .puntual { background: green; }
+        .atraso { background: red; }
+    </style>
+</head>
+<body>
+
+    <h1>Gestión de Marcaciones - Recursos Humanos</h1>
+
+    <div class="card">
+        <h3>Registrar Marcación</h3>
+        <form id="marcacionForm">
+            <input type="text" id="codigo_empleado" placeholder="Código Empleado" required>
+            <input type="text" id="nombre_empleado" placeholder="Nombre Completo" required>
+            <input type="date" id="fecha" required>
+            <label>Prog. Ingreso: <input type="time" id="hora_ingreso_programada" value="08:00" required></label>
+            <label>Real Ingreso: <input type="time" id="hora_ingreso_real" required></label>
+            <label>Prog. Salida: <input type="time" id="hora_salida_programada" value="16:00" required></label>
+            <label>Real Salida: <input type="time" id="hora_salida_real" required></label>
+            <input type="text" id="observacion" placeholder="Observación">
+            <button type="submit">Guardar Marcación</button>
+        </form>
+    </div>
+
+    <div class="card">
+        <h3>Consulta y Filtros</h3>
+        <input type="text" id="filtroEmpleado" placeholder="Filtrar por Código Empleado">
+        <input type="date" id="filtroFecha">
+        <button onclick="cargarMarcaciones()">Filtrar</button>
+        <button onclick="limpiarFiltros()">Limpiar</button>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Código</th>
+                    <th>Nombre</th>
+                    <th>Fecha</th>
+                    <th>Prog. Ingreso</th>
+                    <th>Real Ingreso</th>
+                    <th>Prog. Salida</th>
+                    <th>Real Salida</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="tablaMarcaciones"></tbody>
+        </table>
+    </div>
+
+    <script>
+        async function cargarMarcaciones() {
+            const emp = document.getElementById('filtroEmpleado').value;
+            const fecha = document.getElementById('filtroFecha').value;
+            let url = '/api/marcaciones?';
+            if (emp) url += `empleado=${emp}&`;
+            if (fecha) url += `fecha=${fecha}`;
+
+            const res = await fetch(url);
+            const data = await res.json();
+            
+            const tbody = document.getElementById('tablaMarcaciones');
+            tbody.innerHTML = '';
+            data.forEach(m => {
+                const badgeClass = m.estado === 'PUNTUAL' ? 'puntual' : 'atraso';
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${m.id}</td>
+                        <td>${m.codigo_empleado}</td>
+                        <td>${m.nombre_empleado}</td>
+                        <td>${m.fecha.split('T')[0]}</td>
+                        <td>${m.hora_ingreso_programada}</td>
+                        <td>${m.hora_ingreso_real}</td>
+                        <td>${m.hora_salida_programada}</td>
+                        <td>${m.hora_salida_real}</td>
+                        <td><span class="badge ${badgeClass}">${m.estado}</span></td>
+                        <td><button onclick="eliminar(${m.id})">Eliminar</button></td>
+                    </tr>
+                `;
+            });
+        }
+
+        document.getElementById('marcacionForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const data = {
+                codigo_empleado: document.getElementById('codigo_empleado').value,
+                nombre_empleado: document.getElementById('nombre_empleado').value,
+                fecha: document.getElementById('fecha').value,
+                hora_ingreso_programada: document.getElementById('hora_ingreso_programada').value,
+                hora_ingreso_real: document.getElementById('hora_ingreso_real').value,
+                hora_salida_programada: document.getElementById('hora_salida_programada').value,
+                hora_salida_real: document.getElementById('hora_salida_real').value,
+                observacion: document.getElementById('observacion').value
+            };
+
+            const res = await fetch('/api/marcaciones', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            if (res.ok) {
+                alert('Marcación registrada con éxito');
+                cargarMarcaciones();
+            } else {
+                const err = await res.json();
+                alert('Error: ' + err.error);
+            }
+        });
+
+        async function eliminar(id) {
+            if (confirm('¿Desea eliminar este registro?')) {
+                await fetch(`/api/marcaciones/${id}`, { method: 'DELETE' });
+                cargarMarcaciones();
+            }
+        }
+
+        function limpiarFiltros() {
+            document.getElementById('filtroEmpleado').value = '';
+            document.getElementById('filtroFecha').value = '';
+            cargarMarcaciones();
+        }
+
+        cargarMarcaciones();
+    </script>
+</body>
+</html>
